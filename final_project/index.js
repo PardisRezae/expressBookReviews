@@ -1,7 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const session = require('express-session')
-const customer_routes = require('./router/auth_users.js').authenticated;
+const { authenticated: customer_routes, jwtSecret } = require("./router/auth_users.js");
 const genl_routes = require('./router/general.js').general;
 
 const app = express();
@@ -10,9 +10,22 @@ app.use(express.json());
 
 app.use("/customer",session({secret:"fingerprint_customer",resave: true, saveUninitialized: true}))
 
-app.use("/customer/auth/*", function auth(req,res,next){
-//Write the authenication mechanism here
-});
+app.use("/customer/auth/*", (req, res, next) => {
+    const token = req.session && req.session.token;
+  
+    if (!token) {
+      return res.status(401).json({ message: "Please log in first." });
+    }
+  
+    try {
+      const payload = jwt.verify(token, jwtSecret, { algorithms: ["HS256"] });
+      req.reviewUsername = payload.username;
+    } catch {
+      return res.status(401).json({ message: "Your login session has expired or is invalid." });
+    }
+  
+    return next();
+  });
  
 const PORT =5000;
 
